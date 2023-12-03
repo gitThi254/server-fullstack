@@ -5,6 +5,11 @@ const createAccessToken = require("../libs/jwt");
 const User = require("../models/user.model");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const Cart = require("../models/cart.model");
+const Product = require("../models/product.model");
+const Coupon = require("../models/coupon.model");
+const Order = require("../models/order.model");
+const uniqid = require("uniqid");
 
 exports.createUser = asyncErrorHandler(async (req, res, next) => {
   const newUser = await User.create(req.body);
@@ -208,5 +213,206 @@ exports.resetPassword = asyncErrorHandler(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     message: "reset password successfully",
+  });
+});
+
+exports.loginAdmin = asyncErrorHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+  // check if user exists or not
+  const findAdmin = await User.findOne({ email });
+  if (findAdmin.role !== "admin")
+    return next(new CustomError("Not Authorised", 403));
+  if (findAdmin && (await findAdmin.comparePW(password))) {
+    const refreshToken = await createAccessToken({ id: findAdmin?._id });
+    await User.findByIdAndUpdate(
+      findAdmin.id,
+      {
+        refreshToken: refreshToken,
+      },
+      { new: true }
+    );
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      maxAge: 72 * 60 * 60 * 1000,
+    });
+    res.json({
+      _id: findAdmin?._id,
+      firstname: findAdmin?.firstname,
+      lastname: findAdmin?.lastname,
+      email: findAdmin?.email,
+      mobile: findAdmin?.mobile,
+      token: refreshToken,
+    });
+  } else {
+    return next(new CustomError("Invalid Credentials", 403));
+  }
+});
+
+exports.getWishList = asyncErrorHandler(async (req, res, next) => {
+  const { _id } = req.user;
+  const findUser = await User.findById(_id).populate("wishlist");
+  res.json(findUser);
+});
+
+exports.saveAddress = asyncErrorHandler(async (req, res, next) => {
+  const { _id } = req.user;
+  const updateUser = await User.findOneAndUpdate(
+    _id,
+    {
+      address: req?.body?.address,
+    },
+    {
+      new: true,
+    }
+  );
+  res.json(updateUser);
+});
+
+exports.userCart = asyncErrorHandler(async (req, res, next) => {
+  const { cart } = req.body;
+  const { _id } = req.user;
+  let products = [];
+  const user = await User.findById(_id);
+  const alreadyExistCart = await Cart.findOne({ orderby: user._id });
+  if (alreadyExistCart) {
+    alreadyExistCart.remove();
+  }
+  for (let i = 0; i < cart.length; i++) {
+    let object = {};
+    object.product = cart[i]._id;
+    object.count = cart[i].count;
+    object.color = cart[i].color;
+    let getPrice = await Product.findById(cart[i]._id).select("price").exec();
+    object.price = getPrice.price;
+    products.push(object);
+  }
+  let cartTotal = 0;
+  for (let i = 0; i < products.length; i++) {
+    cartTotal += products[i].price * products[i].count;
+  }
+  const newCart = await Cart.create({
+    products,
+    cartTotal,
+    orderby: user?._id,
+  });
+  res.json({
+    data: newCart,
+  });
+});
+
+exports.getUserCart = asyncErrorHandler(async (req, res, next) => {
+  const { _id } = req.user;
+  const cart = await Cart.findOne({ orderby: _id }).populate(
+    "products.product",
+    "_id title price totalAfterDiscount"
+  );
+  res.json({
+    data: cart,
+  });
+});
+
+exports.emptyCart = asyncErrorHandler(async (req, res, next) => {
+  const { _id } = req.user;
+  const user = await User.findOne({ _id });
+  const cart = await Cart.findOneAndDelete({ orderby: user._id });
+  res.json(cart);
+});
+
+exports.applyCoupon = asyncErrorHandler(async (req, res, next) => {
+  const { coupon } = req.body;
+  const { _id } = req.user;
+  const validCoupon = await Coupon.findOne({ name: coupon });
+  if (!validCoupon) {
+    return next(new CustomError("Invalid Coupon", 400));
+  }
+
+  const user = await User.findOne({ _id });
+  let { cartTotal } = await Cart.findOne({
+    orderby: _id,
+  }).populate("products.product");
+  const totalAfterDiscount = (
+    cartTotal -
+    (cartTotal * validCoupon.discount) / 100
+  ).toFixed(2);
+  console.log(user._id);
+
+  await Cart.findOneAndUpdate(
+    {
+      orderby: _id,
+    },
+    {
+      totalAfterDiscount,
+    },
+    {
+      new: true,
+    }
+  );
+  res.json(totalAfterDiscount);
+});
+
+exports.createOrder = asyncErrorHandler(async (req, res, next) => {
+  const { COD, couponApplied } = req.body;
+  const { _id } = req.user;
+  if (!COD) return next(new CustomError("Create cash order faild", 400));
+  const user = await User.findById(_id);
+  let finalAmout = 0;
+
+  let userCart = await Cart.findOne({ orderby: user._id });
+  if (couponApplied && userCart.totalAfterDiscount) {
+    finalAmout = userCart.totalAfterDiscount;
+  } else {
+    finalAmout = userCart.cartTotal;
+  }
+
+  let newOrder = await Order.create({
+    products: userCart.products,
+    paymentIntent: {
+      id: uniqid(),
+      method: "COD",
+      amount: finalAmout,
+      status: "Cash on Delivery",
+      created: Date.now(),
+      currency: "usd",
+    },
+    orderby: user._id,
+    orderStatus: "Cash on Delivery",
+  });
+  let update = userCart.products.map((item) => {
+    return {
+      updateOne: {
+        filter: { _id: item.product._id },
+        update: { $inc: { quanity: -item.count, sold: +item.count } },
+      },
+    };
+  });
+  const updated = await Product.bulkWrite(update, {});
+  res.json({ message: "success" });
+});
+
+exports.getOrders = asyncErrorHandler(async (req, res, next) => {
+  const { _id } = req.user;
+  const userorders = await Order.findOne({ orderby: _id }).populate(
+    "products.product"
+  );
+  res.json(userorders);
+});
+
+exports.updateOrderStatus = asyncErrorHandler(async (req, res, next) => {
+  const { status } = req.body;
+  const { id } = req.params;
+  const findOrder = await Order.findByIdAndUpdate(
+    id,
+    {
+      orderStatus: status,
+      paymentIntent: {
+        status: status,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  res.json({
+    data: findOrder,
   });
 });

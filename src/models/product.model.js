@@ -34,13 +34,10 @@ const productSchema = new Schema(
       type: Number,
       required: true,
     },
-    images: {
-      type: Array,
-    },
-    color: {
-      type: String,
-      required: true,
-    },
+    images: [],
+    color: [],
+    tags: [],
+
     category: {
       type: String,
       required: true,

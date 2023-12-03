@@ -10,6 +10,9 @@ const blogRoutes = require("./routes/blog.routes");
 const categoryRoutes = require("./routes/category.routes");
 const blogcategoryRoutes = require("./routes/blogcategory.routes");
 const brandRoutes = require("./routes/brand.routes");
+const colorRoutes = require("./routes/color.routes");
+const enqRoutes = require("./routes/enq.routes");
+
 const couponRoutes = require("./routes/coupon.routes");
 
 const app = express();
@@ -30,6 +33,9 @@ app.use("/api/v1/blogs", blogRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/blogcategories", blogcategoryRoutes);
 app.use("/api/v1/brand", brandRoutes);
+app.use("/api/v1/color", colorRoutes);
+app.use("/api/v1/enquiry", enqRoutes);
+
 app.use("/api/v1/coupon", couponRoutes);
 
 app.use("*", (req, res, next) =>

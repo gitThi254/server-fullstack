@@ -4,6 +4,11 @@ const Product = require("../models/product.model");
 const User = require("../models/user.model");
 const ApiFeatures = require("../Utils/ApiFeatures");
 const CustomError = require("../Utils/CustomError");
+const fs = require("fs");
+const {
+  cloudinaryUploadImg,
+  cloudinaryDeleteImg,
+} = require("../Utils/cloudinary");
 
 exports.createProduct = asyncErrorHandler(async (req, res) => {
   if (req.body.title) {
@@ -150,4 +155,25 @@ exports.rating = asyncErrorHandler(async (req, res) => {
     { new: true }
   );
   res.json(finalproduct);
+});
+
+exports.uploadImages = asyncErrorHandler(async (req, res, next) => {
+  let urls = [];
+  const uploader = (path) => cloudinaryUploadImg(path);
+  const files = req.files;
+  for (const file of files) {
+    const { path } = file;
+    const newpath = await uploader(path);
+    urls.push(newpath);
+    fs.unlinkSync(path);
+  }
+
+  const images = urls.map((file) => file);
+  res.json(images);
+});
+
+exports.deleteImages = asyncErrorHandler(async (req, res, next) => {
+  const { id } = req.params;
+  cloudinaryDeleteImg(id);
+  res.json({ message: "Deleted" });
 });
