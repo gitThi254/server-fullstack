@@ -22,6 +22,7 @@ const {
   createOrder,
   getOrders,
   updateOrderStatus,
+  getAllOrders,
 } = require("../controllers/auth.controller");
 const { validateSchema } = require("../middlewares/validator.middleware");
 const { registerSchema, loginSchema } = require("../schemas/user.schema");
@@ -39,6 +40,7 @@ router.post("/cart/cash-order", authRequired, createOrder);
 
 router.get("/wishlist", authRequired, getWishList);
 router.get("/get-orders", authRequired, getOrders);
+router.get("/get-all-orders", authRequired, isAdmin, getAllOrders);
 
 router.get("/cart", authRequired, getUserCart);
 router.delete("/empty-cart", authRequired, emptyCart);

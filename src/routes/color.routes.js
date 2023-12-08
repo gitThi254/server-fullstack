@@ -14,7 +14,7 @@ const router = Router();
 router.route("/").get(getallColor).post(authRequired, isAdmin, createColor);
 router
   .route("/:id")
-  .get(getColor)
+  .get(authRequired, isAdmin, getColor)
   .put(authRequired, isAdmin, updateColor)
   .delete(authRequired, isAdmin, deleteColor);
 

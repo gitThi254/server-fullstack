@@ -34,7 +34,13 @@ const productSchema = new Schema(
       type: Number,
       required: true,
     },
-    images: [],
+    images: [
+      {
+        public_id: String,
+        url: String,
+        asset_id: String,
+      },
+    ],
     color: [],
     tags: [],
 

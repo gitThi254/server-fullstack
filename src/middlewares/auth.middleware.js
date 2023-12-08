@@ -5,7 +5,7 @@ const User = require("../models/user.model");
 
 exports.authRequired = asyncErrorHandler(async (req, res, next) => {
   const { refreshToken } = req.cookies;
-  if (!refreshToken) return next(new CustomError("You are not logged in", 401));
+  if (!refreshToken) return next(new CustomError("You are not logged in", 404));
   jwt.verify(
     refreshToken,
     process.env.SECRET_JWT,

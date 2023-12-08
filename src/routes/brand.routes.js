@@ -11,7 +11,10 @@ const {
 
 const router = Router();
 
-router.route("/").get(getallBrand).post(authRequired, isAdmin, createBrand);
+router
+  .route("/")
+  .get(authRequired, isAdmin, getallBrand)
+  .post(authRequired, isAdmin, createBrand);
 router
   .route("/:id")
   .get(getBrand)

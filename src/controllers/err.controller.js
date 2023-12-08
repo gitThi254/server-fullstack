@@ -17,5 +17,5 @@ module.exports = (err, req, res, next) => {
       : err;
   }
   // res.status(err.statusCode).json([err.message]);
-  res.status(err.statusCode).json([err.stack]);
+  res.status(err.statusCode).json([err.message]);
 };

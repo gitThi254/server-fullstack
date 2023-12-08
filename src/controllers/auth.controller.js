@@ -364,7 +364,7 @@ exports.createOrder = asyncErrorHandler(async (req, res, next) => {
     finalAmout = userCart.cartTotal;
   }
 
-  let newOrder = await Order.create({
+  await Order.create({
     products: userCart.products,
     paymentIntent: {
       id: uniqid(),
@@ -385,7 +385,7 @@ exports.createOrder = asyncErrorHandler(async (req, res, next) => {
       },
     };
   });
-  const updated = await Product.bulkWrite(update, {});
+  await Product.bulkWrite(update, {});
   res.json({ message: "success" });
 });
 
@@ -394,7 +394,16 @@ exports.getOrders = asyncErrorHandler(async (req, res, next) => {
   const userorders = await Order.findOne({ orderby: _id }).populate(
     "products.product"
   );
-  res.json(userorders);
+  res.json({
+    data: userorders,
+  });
+});
+
+exports.getAllOrders = asyncErrorHandler(async (req, res, next) => {
+  const userorders = await Order.find().populate("products.product orderby");
+  res.json({
+    data: userorders,
+  });
 });
 
 exports.updateOrderStatus = asyncErrorHandler(async (req, res, next) => {

@@ -12,7 +12,7 @@ const router = Router();
 
 router
   .route("/")
-  .get(getallCategory)
+  .get(authRequired, isAdmin, getallCategory)
   .post(authRequired, isAdmin, createCateogry);
 router
   .route("/:id")

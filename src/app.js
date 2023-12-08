@@ -12,8 +12,11 @@ const blogcategoryRoutes = require("./routes/blogcategory.routes");
 const brandRoutes = require("./routes/brand.routes");
 const colorRoutes = require("./routes/color.routes");
 const enqRoutes = require("./routes/enq.routes");
+const uploadRoutes = require("./routes/upload.routes");
 
 const couponRoutes = require("./routes/coupon.routes");
+const session = require("express-session");
+const bodyParser = require("body-parser");
 
 const app = express();
 
@@ -22,8 +25,21 @@ app.use(morgan("dev"));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:5713",
+    origin: "http://localhost:3000",
     credentials: true,
+  })
+);
+
+app.use(bodyParser.json());
+app.use(
+  session({
+    secret: "secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false,
+      maxAge: 1000 * 60 * 60 * 24,
+    },
   })
 );
 
@@ -37,6 +53,7 @@ app.use("/api/v1/color", colorRoutes);
 app.use("/api/v1/enquiry", enqRoutes);
 
 app.use("/api/v1/coupon", couponRoutes);
+app.use("/api/v1/upload", uploadRoutes);
 
 app.use("*", (req, res, next) =>
   next(new CustomError(`Can't not find ${req.originalUrl} on the server`, 404))

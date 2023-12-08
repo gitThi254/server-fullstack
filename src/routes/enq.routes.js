@@ -11,10 +11,13 @@ const {
 
 const router = Router();
 
-router.route("/").get(getallEnquiry).post(authRequired, isAdmin, createEnquiry);
+router
+  .route("/")
+  .get(authRequired, isAdmin, getallEnquiry)
+  .post(authRequired, isAdmin, createEnquiry);
 router
   .route("/:id")
-  .get(getEnquiry)
+  .get(authRequired, isAdmin, getEnquiry)
   .put(authRequired, isAdmin, updateEnquiry)
   .delete(authRequired, isAdmin, deleteEnquiry);
 
