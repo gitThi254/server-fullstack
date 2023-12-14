@@ -21,5 +21,7 @@ exports.uploadImages = asyncErrorHandler(async (req, res, next) => {
 exports.deleteImages = asyncErrorHandler(async (req, res, next) => {
   const { id } = req.params;
   cloudinaryDeleteImg(id);
-  res.json({ message: "Deleted" });
+  res.json({
+    data: id,
+  });
 });

@@ -23,8 +23,8 @@ const productSchema = new Schema(
       required: true,
     },
     brand: {
-      type: String,
-      required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Brand",
     },
     price: {
       type: Number,
@@ -41,12 +41,17 @@ const productSchema = new Schema(
         asset_id: String,
       },
     ],
-    color: [],
+    color: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Color",
+      },
+    ],
     tags: [],
 
     category: {
-      type: String,
-      required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
     },
     ratings: [
       {

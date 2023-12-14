@@ -14,8 +14,9 @@ module.exports = (err, req, res, next) => {
       ? new CustomError("mobile already exists, please use another mobile", 400)
       : err.keyValue.slug
       ? new CustomError("slug already exists, please use another slug", 400)
+      : err.keyValue.title
+      ? new CustomError("title already exists, please use another title", 400)
       : err;
   }
-  // res.status(err.statusCode).json([err.message]);
   res.status(err.statusCode).json([err.message]);
 };

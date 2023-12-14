@@ -5,7 +5,9 @@ const Brand = require("../models/brand.model");
 exports.createBrand = asyncErrorHandler(async (req, res, next) => {
   console.log(req.body);
   const createBrand = await Brand.create(req.body);
-  res.json(createBrand);
+  res.json({
+    data: createBrand,
+  });
 });
 
 exports.updateBrand = asyncErrorHandler(async (req, res, next) => {

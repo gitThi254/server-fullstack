@@ -4,7 +4,9 @@ const Color = require("../models/color.model");
 
 exports.createColor = asyncErrorHandler(async (req, res, next) => {
   const createColor = await Color.create(req.body);
-  res.json(createColor);
+  res.json({
+    data: createColor,
+  });
 });
 
 exports.updateColor = asyncErrorHandler(async (req, res, next) => {

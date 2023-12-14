@@ -4,7 +4,9 @@ const Category = require("../models/blogCat.model");
 
 exports.createCateogry = asyncErrorHandler(async (req, res, next) => {
   const newCategory = await Category.create(req.body);
-  res.json(newCategory);
+  res.json({
+    data: newCategory,
+  });
 });
 
 exports.updateCategory = asyncErrorHandler(async (req, res, next) => {

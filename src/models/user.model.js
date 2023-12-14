@@ -39,10 +39,12 @@ const userSchema = new Schema(
       type: String,
       required: true,
     },
-    cart: {
-      type: Array,
-      defaut: [],
-    },
+    cart: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Cart",
+      },
+    ],
     address: {
       type: String,
     },

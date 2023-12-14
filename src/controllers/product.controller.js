@@ -24,6 +24,7 @@ exports.updateProduct = asyncErrorHandler(async (req, res, next) => {
     req.body,
     {
       new: true,
+      runValidators: true,
     }
   );
   if (!updateProduct)
@@ -47,7 +48,9 @@ exports.deleteProduct = asyncErrorHandler(async (req, res, next) => {
 });
 
 exports.getProduct = asyncErrorHandler(async (req, res, next) => {
-  const findProduct = await Product.findById(req.params.id);
+  const findProduct = await Product.findById(req.params.id).populate(
+    "brand color category"
+  );
   if (!findProduct)
     return next(
       new CustomError(`Product with id : ${req.params.id} not found`, 404)
@@ -58,7 +61,10 @@ exports.getProduct = asyncErrorHandler(async (req, res, next) => {
 });
 
 exports.getallProduct = asyncErrorHandler(async (req, res, next) => {
-  const features = new ApiFeatures(Product.find(), req.query)
+  const features = new ApiFeatures(
+    Product.find().populate("color brand category", "title"),
+    req.query
+  )
     .filter()
     .fields()
     .sort()
@@ -104,16 +110,21 @@ exports.rating = asyncErrorHandler(async (req, res) => {
   const { _id } = req.user;
   const { star, productId, comment } = req.body;
   const product = await Product.findById(productId);
-  let alreadyRated = product.ratings.find(
-    (userId) => userId.postedBy.toString() === _id.toString()
-  );
+  let alreadyRated = product.ratings.find((userId) => {
+    return userId.postedBy.toString() === _id.toString();
+  });
+  console.log(product.ratings);
   if (alreadyRated) {
     await Product.updateOne(
       {
         ratings: { $elemMatch: alreadyRated },
       },
       {
-        $set: { "ratings.$.star": star, "ratings.$.comment": comment },
+        $set: {
+          "ratings.$.star": star,
+          "ratings.$.comment": comment,
+          "ratings.$.postedBy": _id,
+        },
       },
       {
         new: true,
@@ -121,13 +132,13 @@ exports.rating = asyncErrorHandler(async (req, res) => {
     );
   } else {
     await Product.findByIdAndUpdate(
-      prodId,
+      productId,
       {
         $push: {
           ratings: {
             star: star,
             comment: comment,
-            postedby: _id,
+            postedBy: _id,
           },
         },
       },
@@ -136,6 +147,7 @@ exports.rating = asyncErrorHandler(async (req, res) => {
       }
     );
   }
+
   const getallratings = await Product.findById(productId);
   let totalRating = getallratings.ratings.length;
   let ratingsum = getallratings.ratings

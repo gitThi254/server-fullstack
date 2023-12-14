@@ -14,11 +14,11 @@ const router = Router();
 
 router
   .route("/")
-  .get(authRequired, isAdmin, getallBlogs)
+  .get(authRequired, getallBlogs)
   .post(authRequired, isAdmin, createBlog);
 
-router.route("/likes").put(authRequired, isAdmin, likeBlog);
-router.route("/dislikes").put(authRequired, isAdmin, disLikeBlog);
+router.route("/likes").put(authRequired, likeBlog);
+router.route("/dislikes").put(authRequired, disLikeBlog);
 
 router
   .route("/:id")

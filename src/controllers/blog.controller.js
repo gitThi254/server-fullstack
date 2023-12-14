@@ -72,8 +72,9 @@ exports.likeBlog = asyncErrorHandler(async (req, res, next) => {
   const alreadyDisliked = blog?.dislikes?.find(
     (userId) => userId?.toString() === loginUserId?.toString()
   );
+
   if (alreadyDisliked) {
-    const blog = await Blog.findByIdAndUpdate(
+    await Blog.findByIdAndUpdate(
       blogId,
       {
         $pull: { dislikes: loginUserId },
@@ -81,7 +82,6 @@ exports.likeBlog = asyncErrorHandler(async (req, res, next) => {
       },
       { new: true }
     );
-    res.json(blog);
   }
   if (isLiked) {
     const blog = await Blog.findByIdAndUpdate(
@@ -92,7 +92,7 @@ exports.likeBlog = asyncErrorHandler(async (req, res, next) => {
       },
       { new: true }
     );
-    res.json(blog);
+    return res.json({ data: blog });
   } else {
     const blog = await Blog.findByIdAndUpdate(
       blogId,
@@ -102,7 +102,7 @@ exports.likeBlog = asyncErrorHandler(async (req, res, next) => {
       },
       { new: true }
     );
-    res.json(blog);
+    return res.json({ data: blog });
   }
 });
 
@@ -127,7 +127,6 @@ exports.disLikeBlog = asyncErrorHandler(async (req, res, next) => {
       },
       { new: true }
     );
-    res.json(blog);
   }
   if (isDisLiked) {
     const blog = await Blog.findByIdAndUpdate(
@@ -138,7 +137,7 @@ exports.disLikeBlog = asyncErrorHandler(async (req, res, next) => {
       },
       { new: true }
     );
-    res.json(blog);
+    return res.json({ data: blog });
   } else {
     const blog = await Blog.findByIdAndUpdate(
       blogId,
@@ -148,6 +147,6 @@ exports.disLikeBlog = asyncErrorHandler(async (req, res, next) => {
       },
       { new: true }
     );
-    res.json(blog);
+    return res.json({ data: blog });
   }
 });

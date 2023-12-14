@@ -11,7 +11,10 @@ const {
 
 const router = Router();
 
-router.route("/").get(getallColor).post(authRequired, isAdmin, createColor);
+router
+  .route("/")
+  .get(authRequired, isAdmin, getallColor)
+  .post(authRequired, isAdmin, createColor);
 router
   .route("/:id")
   .get(authRequired, isAdmin, getColor)

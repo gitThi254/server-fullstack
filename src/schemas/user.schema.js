@@ -5,13 +5,13 @@ exports.registerSchema = z.object({
     .string({
       required_error: "firstname is required",
     })
-    .min(3, { message: "username must have at least 3 characters" })
+    .min(2, { message: "username must have at least 2 characters" })
     .max(20, { message: "username must have at most 20 characters" }),
   lastname: z
     .string({
       required_error: "username is required",
     })
-    .min(3, { message: "lastname must have at least 3 characters" })
+    .min(2, { message: "lastname must have at least 2 characters" })
     .max(20, { message: "lastname must have at most 20 characters" }),
   email: z
     .string({
@@ -22,7 +22,7 @@ exports.registerSchema = z.object({
     .string({
       required_error: "number is required",
     })
-    .length(9, { message: "mobile must have 9 digits" }),
+    .length(10, { message: "mobile must have 10 digits" }),
   password: z
     .string({
       required_error: "password is required",
@@ -34,7 +34,7 @@ exports.registerSchema = z.object({
 exports.loginSchema = z.object({
   email: z
     .string({
-      required_error: "username is required",
+      required_error: "email is required",
     })
     .email({ message: "Invalid is Email" }),
   password: z

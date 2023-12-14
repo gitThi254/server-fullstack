@@ -10,6 +10,7 @@ const Product = require("../models/product.model");
 const Coupon = require("../models/coupon.model");
 const Order = require("../models/order.model");
 const uniqid = require("uniqid");
+const { STATUS_CODES } = require("http");
 
 exports.createUser = asyncErrorHandler(async (req, res, next) => {
   const newUser = await User.create(req.body);
@@ -28,20 +29,13 @@ exports.login = asyncErrorHandler(async (req, res, next) => {
     user._id,
     { refreshToken: refreshToken },
     { new: true }
-  );
+  ).populate("wishlist cart");
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     maxAge: 72 * 60 * 60 * 1000,
   });
   res.json({
-    data: {
-      id: updateUser._id,
-      firstname: updateUser.firstname,
-      lastname: updateUser.lastname,
-      email: updateUser.email,
-      mobile: updateUser.mobile,
-      token: refreshToken,
-    },
+    data: updateUser,
   });
 });
 
@@ -85,6 +79,20 @@ exports.getUser = asyncErrorHandler(async (req, res, next) => {
 
 exports.updateUser = asyncErrorHandler(async (req, res, next) => {
   const user = await User.findByIdAndUpdate(req.user._id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+  if (!user)
+    return next(
+      new CustomError(`user with ID: ${req.params.id} not found`, 404)
+    );
+  res.status(200).json({
+    data: user,
+  });
+});
+
+exports.EditUser = asyncErrorHandler(async (req, res, next) => {
+  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
   });
@@ -165,9 +173,7 @@ exports.forgotPassword = asyncErrorHandler(async (req, res, next) => {
   }
   const resetToken = user.createResetPasswordToken();
   await user.save({ validateBeforeSave: false });
-  const resetUrl = `${req.protocol}://${req.get(
-    "host"
-  )}/api/v1/users/resetPassword/${resetToken}`;
+  const resetUrl = `http://localhost:5173/resetPassword/${resetToken}`;
   const message = `We have received a password reset request. Please use the below link to rest your passsord\n\n${resetUrl}\n\nThis rsest password link will be valid only for 10 minutes.`;
   try {
     await sendEmail({
@@ -236,12 +242,14 @@ exports.loginAdmin = asyncErrorHandler(async (req, res, next) => {
       maxAge: 72 * 60 * 60 * 1000,
     });
     res.json({
-      _id: findAdmin?._id,
-      firstname: findAdmin?.firstname,
-      lastname: findAdmin?.lastname,
-      email: findAdmin?.email,
-      mobile: findAdmin?.mobile,
-      token: refreshToken,
+      data: {
+        _id: findAdmin?._id,
+        firstname: findAdmin?.firstname,
+        lastname: findAdmin?.lastname,
+        email: findAdmin?.email,
+        mobile: findAdmin?.mobile,
+        token: refreshToken,
+      },
     });
   } else {
     return next(new CustomError("Invalid Credentials", 403));
@@ -250,8 +258,12 @@ exports.loginAdmin = asyncErrorHandler(async (req, res, next) => {
 
 exports.getWishList = asyncErrorHandler(async (req, res, next) => {
   const { _id } = req.user;
-  const findUser = await User.findById(_id).populate("wishlist");
-  res.json(findUser);
+  const findUser = await User.findById(_id)
+    .select("wishlist")
+    .populate("wishlist");
+  res.json({
+    data: findUser,
+  });
 });
 
 exports.saveAddress = asyncErrorHandler(async (req, res, next) => {
@@ -269,32 +281,39 @@ exports.saveAddress = asyncErrorHandler(async (req, res, next) => {
 });
 
 exports.userCart = asyncErrorHandler(async (req, res, next) => {
-  const { cart } = req.body;
+  const { productId, color, quantity } = req.body;
   const { _id } = req.user;
-  let products = [];
-  const user = await User.findById(_id);
-  const alreadyExistCart = await Cart.findOne({ orderby: user._id });
-  if (alreadyExistCart) {
-    alreadyExistCart.remove();
-  }
-  for (let i = 0; i < cart.length; i++) {
-    let object = {};
-    object.product = cart[i]._id;
-    object.count = cart[i].count;
-    object.color = cart[i].color;
-    let getPrice = await Product.findById(cart[i]._id).select("price").exec();
-    object.price = getPrice.price;
-    products.push(object);
-  }
-  let cartTotal = 0;
-  for (let i = 0; i < products.length; i++) {
-    cartTotal += products[i].price * products[i].count;
+  let price = await Product.findById(productId).then((res) => {
+    return quantity * res.price;
+  });
+  const findCart = await Cart.findOne({ userId: _id, productId, color });
+
+  if (findCart) {
+    const updateCart = await Cart.findByIdAndUpdate(
+      findCart._id,
+      {
+        $inc: { quantity: quantity, price: price },
+      },
+      { new: true }
+    );
+
+    return res.json({ data: updateCart });
   }
   const newCart = await Cart.create({
-    products,
-    cartTotal,
-    orderby: user?._id,
+    userId: _id,
+    productId,
+    color,
+    price,
+    quantity,
   });
+  if (newCart) {
+    await User.findByIdAndUpdate(
+      _id,
+      { $push: { cart: newCart._id } },
+      { new: true, runValidators: true }
+    );
+  }
+
   res.json({
     data: newCart,
   });
@@ -302,19 +321,57 @@ exports.userCart = asyncErrorHandler(async (req, res, next) => {
 
 exports.getUserCart = asyncErrorHandler(async (req, res, next) => {
   const { _id } = req.user;
-  const cart = await Cart.findOne({ orderby: _id }).populate(
-    "products.product",
-    "_id title price totalAfterDiscount"
-  );
+  const cart = await Cart.find({ userId: _id }).populate("productId color");
   res.json({
     data: cart,
   });
 });
 
+exports.removeProductFromCart = asyncErrorHandler(async (req, res, next) => {
+  const { _id } = req.user;
+  const { id } = req.params;
+  const deleteProductFromCart = await Cart.findOneAndDelete({
+    userId: _id,
+    _id: id,
+  });
+  if (deleteProductFromCart) {
+    await User.findByIdAndUpdate(
+      _id,
+      { $pull: { cart: deleteProductFromCart._id } },
+      { new: true, runValidators: true }
+    );
+  }
+
+  res.json({ data: deleteProductFromCart });
+});
+
+exports.updateProductQuantityFromCart = asyncErrorHandler(
+  async (req, res, next) => {
+    const { _id } = req.user;
+    const { cartItemId, newQuantity } = req.params;
+    const cartitem = await Cart.findOne({
+      userId: _id,
+      _id: cartItemId,
+    }).populate("productId");
+    cartitem.quantity = newQuantity;
+    cartitem.price = cartitem.productId.price * newQuantity;
+    cartitem.save();
+    res.json({
+      data: cartitem,
+    });
+  }
+);
+
 exports.emptyCart = asyncErrorHandler(async (req, res, next) => {
   const { _id } = req.user;
-  const user = await User.findOne({ _id });
-  const cart = await Cart.findOneAndDelete({ orderby: user._id });
+  const cart = await Cart.findOneAndDelete({ userId: _id });
+  if (cart) {
+    await User.findByIdAndUpdate(
+      _id,
+      { $set: { cart: [] } },
+      { new: true, runValidators: true }
+    );
+  }
   res.json(cart);
 });
 
@@ -351,42 +408,29 @@ exports.applyCoupon = asyncErrorHandler(async (req, res, next) => {
 });
 
 exports.createOrder = asyncErrorHandler(async (req, res, next) => {
-  const { COD, couponApplied } = req.body;
+  const {
+    shippingInfo,
+    orderItems,
+    totalPrice,
+    totalPriceAfterDiscount,
+    paymentInfo,
+  } = req.body;
+
   const { _id } = req.user;
-  if (!COD) return next(new CustomError("Create cash order faild", 400));
-  const user = await User.findById(_id);
-  let finalAmout = 0;
 
-  let userCart = await Cart.findOne({ orderby: user._id });
-  if (couponApplied && userCart.totalAfterDiscount) {
-    finalAmout = userCart.totalAfterDiscount;
-  } else {
-    finalAmout = userCart.cartTotal;
-  }
+  const order = await Order.create({
+    shippingInfo,
+    orderItems,
+    totalPrice,
+    totalPriceAfterDiscount,
+    paymentInfo,
+    user: _id,
+  });
 
-  await Order.create({
-    products: userCart.products,
-    paymentIntent: {
-      id: uniqid(),
-      method: "COD",
-      amount: finalAmout,
-      status: "Cash on Delivery",
-      created: Date.now(),
-      currency: "usd",
-    },
-    orderby: user._id,
-    orderStatus: "Cash on Delivery",
+  res.json({
+    order,
+    success: true,
   });
-  let update = userCart.products.map((item) => {
-    return {
-      updateOne: {
-        filter: { _id: item.product._id },
-        update: { $inc: { quanity: -item.count, sold: +item.count } },
-      },
-    };
-  });
-  await Product.bulkWrite(update, {});
-  res.json({ message: "success" });
 });
 
 exports.getOrders = asyncErrorHandler(async (req, res, next) => {
@@ -399,8 +443,21 @@ exports.getOrders = asyncErrorHandler(async (req, res, next) => {
   });
 });
 
+exports.getaOrder = asyncErrorHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const order = await (
+    await Order.findById(id).populate(
+      "orderItems.product orderItems.color orderItems.product.brand"
+    )
+  ).populate("orderItems.product.brand");
+  console.log(order.orderItems[0].product);
+  res.json({
+    data: order,
+  });
+});
+
 exports.getAllOrders = asyncErrorHandler(async (req, res, next) => {
-  const userorders = await Order.find().populate("products.product orderby");
+  const userorders = await Order.find().populate("orderItems.product user");
   res.json({
     data: userorders,
   });
@@ -412,16 +469,60 @@ exports.updateOrderStatus = asyncErrorHandler(async (req, res, next) => {
   const findOrder = await Order.findByIdAndUpdate(
     id,
     {
-      orderStatus: status,
-      paymentIntent: {
-        status: status,
-      },
+      $set: { orderStatus: status },
     },
     {
       new: true,
     }
   );
+  if (!findOrder) {
+    return next(new CustomError("order not found", 404));
+  } else {
+    if (status === "Delivered") {
+      findOrder.orderItems.forEach(async (item) => {
+        await Product.findByIdAndUpdate(
+          item.product,
+          {
+            $inc: { quantity: -item.quantity },
+          },
+          { new: true }
+        ).then((res) => {
+          return res;
+        });
+      });
+    }
+  }
+
   res.json({
     data: findOrder,
+  });
+});
+
+exports.verifyToken = asyncErrorHandler(async (req, res, next) => {
+  const { refreshToken } = req.cookies;
+  if (!refreshToken) return next(new CustomError("You are not logged in", 401));
+  jwt.verify(
+    refreshToken,
+    process.env.SECRET_JWT,
+    async (err, refreshToken) => {
+      if (err)
+        return next(
+          new CustomError("Invalid or token expired, you are loggin again", 401)
+        );
+      let user = await User.findById(refreshToken.id).populate("wishlist cart");
+
+      if (!user) return next(new CustomError("User not found", 404));
+      return res.json(user);
+    }
+  );
+});
+
+exports.getMyOrders = asyncErrorHandler(async (req, res, next) => {
+  const { _id } = req.user;
+  const orders = await Order.find({ user: _id }).populate(
+    "orderItems.product orderItems.color"
+  );
+  res.json({
+    data: orders,
   });
 });

@@ -1,49 +1,14 @@
-const express = require("express");
-const authRoute = require("./routes/authRoutes");
-const authAdminRoute = require("./routes/admin/authRoutes");
-const CustomError = require("./Utils/CustomError");
-const globalErrorHandler = require("./controller/errorController");
-const cors = require("cors");
-const cookieParser = require("cookie-parser");
-const session = require("express-session");
-const bodyParser = require("body-parser");
+Yêu cầu :
+Mô tả tổng quát chủ đề nghiên cứu, bao gồm các nội dung:
+-tóm lược ý tưởng và chủ đề nghiên cứu (Tại sao chọn theo chủ đề này;
+-xác định nội dung học tập; các kiến thức, kỹ năng đã có để thực hiện chủ đề nghiên cứu ;
+-các kiến thức, kỹ năng then chốt phải học trong chủ đề nghiên cứu để đạt được mục tiêu/chuẩn đầu ra của học phần.
+Hướng dẫn:
+-nhóm mô tả tổng quan về lập trình trên thiết bị di động; có bao nhiêu phương pháp lập trình trên thiết bị do động và nhóm đã chọn hệ điều hành nào và vì sao.
+-Nhóm nêu một số nền tảng lập trình trên thiết bị động phổ biến hiện nay và đặc điểm của nền tảng đó; các yêu cầu phần cứng đáp ứng đi kèm.
+-Nhóm mô tả vì sao nhóm lại chọn môn học này và chủ đề đã chọn.
 
-const app = express();
-
-app.use(express.json());
-
-app.use(cookieParser());
-app.use(
-  cors({
-    origin: ["http://localhost:5173"],
-    methods: ["POST", "GET"],
-    credentials: true,
-  })
-);
-
-app.use(bodyParser.json());
-app.use(
-  session({
-    secret: "secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false,
-      maxAge: 1000 * 60 * 60 * 24,
-    },
-  })
-);
-app.use("/api/v1/users", authRoute);
-app.use("/api/v1/admin", authAdminRoute);
-
-app.all("*", (req, res, next) => {
-  const err = new CustomError(
-    `can't not find ${req.originalUrl} on the server`,
-    404
-  );
-  next(err);
-});
-
-app.use(globalErrorHandler);
-
-module.exports = app;
+-Bài tập bao gồm mấy nội dung chính và đặc điểm tóm tắt của từng nội dung
+-Để thực hiện đề tài, sinh viên đã vận dụng kiến thức nào và sử dụng bao nhiêu loại công cụ để hỗ trợ. Bài tập lớn được hoàn thành dựa trên kinh nghiệm cá nhân hay hợp tác nhóm
+-Đề tài thực hiện nhằm hoàn thiện những các kiến thức, kỹ năng then chốt nào để đạt được mục tiêu/chuẩn đầu ra của học phần (tham khảo các biểu mẫu 1,2,4,5,6 cô gửi).
+Ghi chú: Trên là các gợi ý để sinh viên tham khảo viết phần mở đầu. Sinh viên có thể sử dụng hoặc không. Sinh viên không gạch đầu dòng trả lời từng gợi ý mà dựa vào đó hình thành nội dung trình bày.
